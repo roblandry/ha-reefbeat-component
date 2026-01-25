@@ -100,6 +100,29 @@ from .i18n import translate
 
 _LOGGER = logging.getLogger(__name__)
 
+
+_PRESET_NAME_SUFFIX_RE = re.compile(r"^(?P<name>.+?)-(?P<ts>\d{10,})$")
+
+
+def _normalize_led_preset_name(value: Any) -> Any:
+    """Normalize LED preset names.
+
+    The upstream simulator (and some firmwares) append a numeric suffix
+    (often a millis timestamp) to make preset names unique, e.g.
+    "rl90 15k-1757779545829". For UI display we strip that suffix.
+    """
+    if not isinstance(value, str):
+        return value
+
+    s = value.strip()
+    m = _PRESET_NAME_SUFFIX_RE.match(s)
+    if not m:
+        return value
+
+    # Keep the human-friendly portion.
+    return m.group("name")
+
+
 # HA's StateType doesn't include date/datetime, but SensorEntity supports them for
 # device classes like DATE/TIMESTAMP.
 SensorNativeValue: TypeAlias = StateType | datetime.date | datetime.datetime
@@ -1345,7 +1368,9 @@ class ReefLedScheduleSensorEntity(ReefBeatSensorEntity):
         self._attr_available = True
         desc = cast(ReefLedScheduleSensorEntityDescription, self._description)
 
-        self._attr_native_value = self._device.get_data(desc.value_name)
+        self._attr_native_value = _normalize_led_preset_name(
+            self._device.get_data(desc.value_name)
+        )
 
         id_name = desc.id_name
         prog_data = self._device.get_data(

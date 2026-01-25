@@ -66,6 +66,24 @@ def test_led_schedule_sensor_sets_value_and_attributes() -> None:
     }
 
 
+def test_led_schedule_sensor_strips_timestamp_suffix() -> None:
+    device = _FakeCoordinator()
+    device.get_data_map["$.schedule"] = "rl90 15k-1757779545829"
+    device.get_data_map["$.sources[?(@.name=='/auto/1')].data"] = {}
+    device.get_data_map["$.sources[?(@.name=='/clouds/1')].data"] = {}
+
+    desc = ReefLedScheduleSensorEntityDescription(
+        key="sched",
+        translation_key="sched",
+        value_name="$.schedule",
+        id_name=1,
+    )
+    entity = ReefLedScheduleSensorEntity(cast(Any, device), cast(Any, desc))
+    entity._update_val()
+
+    assert entity.native_value == "rl90 15k"
+
+
 @pytest.mark.asyncio
 async def test_async_setup_entry_led_g2_branch(monkeypatch: Any, hass: Any) -> None:
     class _G2(_FakeCoordinator):
