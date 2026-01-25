@@ -472,7 +472,7 @@ async def async_setup_entry(
         entities, device, ReefBeatButtonEntity, FIRMWARE_UPDATE_BUTTON
     )
 
-    async_add_entities(entities, True)
+    async_add_entities(entities)
 
 
 # -----------------------------------------------------------------------------

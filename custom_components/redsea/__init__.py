@@ -23,6 +23,7 @@ from homeassistant.core import (
     SupportsResponse,
     callback,
 )
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.typing import ConfigType
 
@@ -160,6 +161,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     except Exception:
         _LOGGER.exception("Failed to setup coordinator for entry_id=%s", entry.entry_id)
         return False
+
+    # Perform a single first refresh up-front so platform setup doesn't block on
+    # `async_add_entities(..., update_before_add=True)` refreshes (which can trigger
+    # repeated 10s platform setup warnings when many entities exist).
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:
+        raise ConfigEntryNotReady(
+            f"Initial refresh failed for entry_id={entry.entry_id}: {err}"
+        ) from err
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
