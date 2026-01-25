@@ -55,9 +55,8 @@ def test_get_reefbeats_inprocess(monkeypatch: pytest.MonkeyPatch) -> None:
     devices = auto_detect.get_reefbeats(subnetwork="192.0.2.0/30", nb_of_threads=1)
     assert len(devices) == 1
     dev0 = devices[0]
-    dev0_dict = dev0 if isinstance(dev0, dict) else {}
-    assert dev0_dict.get("ip") == "1.1.1.1"
-    assert dev0_dict.get("uuid") == "uuid"
+    assert dev0.get("ip") == "1.1.1.1"
+    assert dev0.get("uuid") == "uuid"
 
 
 def test_get_unique_id_parses_udn(monkeypatch: pytest.MonkeyPatch) -> None:

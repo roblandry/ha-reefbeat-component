@@ -1,14 +1,11 @@
-// Pyright / Pylance config used by VS Code.
+// Pyright config used by pre-commit.
 //
-// Why this exists:
-// - VS Code should show diagnostics for local scratch code under `.dev/`.
-// - Production code under `custom_components/` remains strict.
-// - Tests under `tests/` are treated "basic-like" via per-environment overrides.
-//
-// Pre-commit intentionally uses `pyrightconfig.precommit.json` so local `.dev/`
-// files never fail commits.
+// Intentional difference from `pyrightconfig.json`:
+// - Excludes `.dev/` so uncommitted local scratch files don't fail pre-commit.
+// - Keeps strict checking for `custom_components/`.
+// - Keeps "basic-like" overrides for `tests/`.
 {
-  "include": [".dev", "custom_components", "tests"],
+  "include": ["custom_components", "tests"],
   "exclude": ["**/node_modules", "**/__pycache__"],
   "extraPaths": ["."],
   "stubPath": "typings",
@@ -16,14 +13,10 @@
   "typeCheckingMode": "strict",
   "executionEnvironments": [
     {
-      "root": ".dev"
-    },
-    {
       "root": "custom_components"
     },
     {
       "root": "tests",
-      // basic typing plus extras
       "reportMissingTypeStubs": "none",
       "reportPrivateUsage": "none",
       "reportUnknownArgumentType": "none",

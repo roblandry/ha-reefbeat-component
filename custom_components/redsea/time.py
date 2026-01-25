@@ -15,8 +15,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import time
-from datetime import time as dt_time
+from datetime import time, time as dt_time
 from functools import cached_property
 from typing import cast
 

@@ -14,6 +14,13 @@ from custom_components.redsea.reefbeat.api import ReefBeatAPI
 _ORIG_HTTP_GET = ReefBeatAPI._http_get
 
 
+class _FakeMatch:
+    def __init__(self, value: dict[str, Any]):
+        self.value = value
+        self.context: Any | None = None
+        self.path: Any = None
+
+
 @dataclass
 class _FakeResponse:
     status: int
@@ -238,9 +245,9 @@ async def test_http_get_success_and_failure(monkeypatch: pytest.MonkeyPatch) -> 
 
     res = await api.http_get("/dashboard")
     assert res is not None
-    assert res["ok"] is True
-    assert res["method"] == "get"
-    assert res["status"] == 200
+    assert res.get("ok") is True
+    assert res.get("method") == "get"
+    assert res.get("status") == 200
     assert "elapsed_ms" in res
 
     def _boom(*_args: Any, **_kwargs: Any) -> Any:
@@ -260,11 +267,7 @@ async def test__http_get_handles_missing_endpoint_and_client_error(
 
     monkeypatch.setattr(ReefBeatAPI, "_http_get", _ORIG_HTTP_GET, raising=True)
 
-    class _Match:
-        def __init__(self, value: dict[str, Any]):
-            self.value = value
-
-    assert await api._http_get(cast(Any, session), _Match({})) is False
+    assert await api._http_get(cast(Any, session), _FakeMatch({})) is False
 
     import aiohttp
 
@@ -273,7 +276,8 @@ async def test__http_get_handles_missing_endpoint_and_client_error(
 
     monkeypatch.setattr(session, "get", _raise)
     assert (
-        await api._http_get(cast(Any, session), _Match({"name": "/dashboard"})) is False
+        await api._http_get(cast(Any, session), _FakeMatch({"name": "/dashboard"}))
+        is False
     )
 
 
@@ -300,16 +304,12 @@ async def test__http_get_parses_non_json_content_type_and_sets_source_data() -> 
     # Restore the real implementation (autouse fixture patches it).
     ReefBeatAPI._http_get = _ORIG_HTTP_GET  # type: ignore[method-assign]
 
-    class _Match:
-        def __init__(self, value: dict[str, Any]):
-            self.value = value
-
-    m1 = _Match({"name": "/x", "data": None})
+    m1 = _FakeMatch({"name": "/x", "data": None})
     ok1 = await api._http_get(cast(Any, session), m1)
     assert ok1 is True
     assert m1.value["data"] == {"a": 1}
 
-    m2 = _Match({"name": "/y", "data": None})
+    m2 = _FakeMatch({"name": "/y", "data": None})
     ok2 = await api._http_get(cast(Any, session), m2)
     assert ok2 is True
     assert m2.value["data"] == "not json"
@@ -337,11 +337,7 @@ async def test__http_get_secure_401_triggers_connect_and_retries() -> None:
 
     api.connect = _connect  # type: ignore[method-assign]
 
-    class _Match:
-        def __init__(self, value: dict[str, Any]):
-            self.value = value
-
-    m = _Match({"name": "/secure", "data": None})
+    m = _FakeMatch({"name": "/secure", "data": None})
     ok = await api._http_get(cast(Any, session), m)
     assert ok is True
     assert called == ["connect"]
@@ -364,11 +360,7 @@ async def test__http_get_status_ge_400_returns_false() -> None:
     # Restore the real implementation (autouse fixture patches it).
     ReefBeatAPI._http_get = _ORIG_HTTP_GET  # type: ignore[method-assign]
 
-    class _Match:
-        def __init__(self, value: dict[str, Any]):
-            self.value = value
-
-    m = _Match({"name": "/bad", "data": None})
+    m = _FakeMatch({"name": "/bad", "data": None})
     ok = await api._http_get(cast(Any, session), m)
     assert ok is False
 
@@ -500,11 +492,7 @@ async def test__call_url_retries_and_sets_error(
     monkeypatch.setattr(api_mod.asyncio, "sleep", _fake_sleep)
     monkeypatch.setattr(api, "_http_get", lambda *_a, **_k: False)
 
-    class _Match:
-        def __init__(self, value: dict[str, Any]):
-            self.value = value
-
-    await api._call_url(cast(Any, session), _Match({"name": "/fail"}))
+    await api._call_url(cast(Any, session), _FakeMatch({"name": "/fail"}))
     assert api._in_error is True
     assert sleeps
 

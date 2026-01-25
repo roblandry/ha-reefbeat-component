@@ -4,7 +4,6 @@ from typing import Any, cast
 
 import pytest
 from homeassistant.const import PERCENTAGE
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.redsea.entity import ReefBeatRestoreEntity
@@ -112,9 +111,9 @@ async def test_run_async_added_to_hass_sets_per_pump_device_info(hass: Any) -> N
     await ent.async_added_to_hass()
 
     assert ent.device_info is not None
-    di = cast(DeviceInfo, ent.device_info)
+    di = ent.device_info
     identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
-    assert any("pump_2" in cast(tuple[Any, ...], ident) for ident in identifiers)
+    assert any("pump_2" in ident for ident in identifiers)
 
 
 @pytest.mark.asyncio

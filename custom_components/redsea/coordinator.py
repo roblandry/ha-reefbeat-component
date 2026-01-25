@@ -252,19 +252,14 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             # Fetch through the API layer so we use the same retry/timeout logic
             # and test patching as the rest of the integration.
-            sources_any = getattr(self.my_api, "data", {}).get("sources")
-            sources: list[dict[str, Any]]
+            sources_any = self.my_api.data.get("sources")
             if isinstance(sources_any, list):
                 sources = cast(list[dict[str, Any]], sources_any)
             else:
-                sources = []
-                if isinstance(getattr(self.my_api, "data", None), dict):
-                    self.my_api.data["sources"] = sources  # type: ignore[index]
+                sources: list[dict[str, Any]] = []
+                self.my_api.data["sources"] = sources
 
-            if not any(
-                isinstance(s, dict) and s.get("name") == "/description.xml"
-                for s in sources
-            ):
+            if not any(s.get("name") == "/description.xml" for s in sources):
                 sources.append(
                     {"name": "/description.xml", "type": "config", "data": ""}
                 )

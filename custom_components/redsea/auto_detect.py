@@ -93,7 +93,7 @@ def get_local_ips(subnetwork: str | None = None) -> list[str]:
                     if addr.get("addr") != local_ip:
                         continue
                     netmask = addr.get("netmask")
-                    if not isinstance(netmask, str) or not netmask:
+                    if not netmask:
                         continue
                     cidr = f"{local_ip}/{netmask}"
                     return list(_iter_ipv4s(cidr))
@@ -117,7 +117,7 @@ def get_unique_id(ip: str) -> str | None:
         udn_text: str | None = None
         for el in root.iter():
             # Handle namespaces by looking at the localname.
-            if isinstance(el.tag, str) and el.tag.split("}")[-1] == "UDN":
+            if el.tag.split("}")[-1] == "UDN":
                 if el.text:
                     udn_text = el.text.strip()
                 break

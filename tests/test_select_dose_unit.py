@@ -4,7 +4,6 @@ from typing import Any, cast
 
 import pytest
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 import custom_components.redsea.select as platform
@@ -110,7 +109,7 @@ def test_reefdose_select_device_info_builds_head_device_and_copies_fields(
     )
     ent = ReefDoseSelectEntity(cast(Any, device), desc)
 
-    di = cast(DeviceInfo, ent.device_info)
+    di = ent.device_info
     assert ("redsea", "IDENT", "head_1") in (di.get("identifiers") or set())
     assert di.get("name") == "Dose head 1"
 

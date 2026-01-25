@@ -15,26 +15,15 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, cast
 
-from homeassistant.components.button import (
-    ButtonEntity,
-    ButtonEntityDescription,
-)
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    EntityCategory,
-)
-from homeassistant.core import (
-    HomeAssistant,
-)
+from homeassistant.const import EntityCategory
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
-from .const import (
-    DOMAIN,
-    WAVE_SCHEDULE_PATH,
-    WAVES_DATA_NAMES,
-)
+from .const import DOMAIN, WAVE_SCHEDULE_PATH, WAVES_DATA_NAMES
 from .coordinator import (
     ReefATOCoordinator,
     ReefBeatCoordinator,

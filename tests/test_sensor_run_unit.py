@@ -40,7 +40,7 @@ def test_run_device_info_extends_identifiers_and_name() -> None:
     entity = ReefRunSensorEntity(cast(Any, device), desc)
 
     di = entity.device_info
-    assert cast(str, di.get("name") or "").endswith(" pump 2")
+    assert (di.get("name") or "").endswith(" pump 2")
     identifiers = cast(set[Any], di.get("identifiers") or set())
     assert any("pump_2" in cast(tuple[Any, ...], ident) for ident in identifiers)
 
@@ -57,7 +57,7 @@ def test_run_device_info_no_identifiers_still_sets_name() -> None:
     )
     entity = ReefRunSensorEntity(cast(Any, device), desc)
 
-    assert cast(str, entity.device_info.get("name") or "").endswith(" pump 1")
+    assert (entity.device_info.get("name") or "").endswith(" pump 1")
 
 
 @pytest.mark.asyncio

@@ -240,6 +240,4 @@ def test_cloud_identity_properties_and_device_info(hass: HomeAssistant) -> None:
     assert cloud.detected_id == "MyCloud"
 
     di = cloud.device_info
-    assert (DOMAIN, "MyCloud") in cast(
-        set[tuple[str, str]], di.get("identifiers") or set()
-    )
+    assert (DOMAIN, "MyCloud") in (di.get("identifiers") or set())

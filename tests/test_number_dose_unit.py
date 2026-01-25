@@ -4,7 +4,6 @@ from typing import Any, cast
 
 import pytest
 from homeassistant.const import UnitOfVolume
-from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.redsea.entity import ReefBeatRestoreEntity
@@ -57,7 +56,7 @@ def test_dose_device_info_head_extends_identifiers_and_name() -> None:
     ent = ReefDoseNumberEntity(cast(Any, device), desc)
 
     assert ent.device_info is not None
-    di = cast(DeviceInfo, ent.device_info)
+    di = ent.device_info
     identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
     assert ("redsea", "SERIAL", "head_2") in identifiers
     assert di.get("name") == "Device head 2"
@@ -164,6 +163,6 @@ async def test_dose_async_added_to_hass_sets_per_head_device_info(hass: Any) -> 
     await ent.async_added_to_hass()
 
     assert ent.device_info is not None
-    di = cast(DeviceInfo, ent.device_info)
+    di = ent.device_info
     identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
     assert ("redsea", "SERIAL", "head_1") in identifiers

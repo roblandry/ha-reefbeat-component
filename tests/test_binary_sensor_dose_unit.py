@@ -11,7 +11,7 @@ class _FakeCoordinator:
     serial: str = "SERIAL"
     title: str = "Device"
     last_update_success: bool = True
-    device_info: dict[str, Any] = None  # type: ignore[assignment]
+    device_info: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.device_info is None:

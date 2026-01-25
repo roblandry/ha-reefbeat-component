@@ -32,6 +32,29 @@ Home Assistant installs these automatically; for local test runs we install them
 
 pytest -q
 
+## Pre-commit
+
+This repo uses `pre-commit` to run quality checks at commit time.
+
+Hooks configured in [.pre-commit-config.yaml](.pre-commit-config.yaml):
+
+- `ruff-check` (with `--fix`)
+- `ruff-format`
+- `pyright` (strict)
+- `pytest -q`
+
+Setup:
+
+- Install dev/test deps (includes `pre-commit`): `pip install -r requirements.test.txt`
+- Enable git hooks: `pre-commit install`
+- Run manually: `pre-commit run --all-files` (or `pre-commit run --all-files -v` for more progress output)
+
+Notes:
+
+- The `pytest` hook runs in a pre-commit managed Python environment (local hook with `language: python` + `additional_dependencies`), so it does not depend on your current shell venv.
+- After changing hook configuration/dependencies, you may need: `pre-commit clean` (then rerun a commit or `pre-commit run --all-files`).
+- Hook versions (e.g. ruff `rev`) are kept up to date by the scheduled workflow in [.github/workflows/pre-commit-autoupdate.yml](.github/workflows/pre-commit-autoupdate.yml).
+
 ## Notes
 
 - Network is disabled by monkeypatching `ReefBeatAPI.fetch_data()` to load captured fixture payloads.

@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any, Callable, cast
 
 import pytest
 from homeassistant.components.light import ATTR_BRIGHTNESS, ATTR_COLOR_TEMP_KELVIN
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from custom_components.redsea.const import (
@@ -119,11 +123,14 @@ async def test_light_async_setup_entry_adds_entities_for_g2_and_virtual_only_g1(
 
     added_g2: list[Any] = []
 
-    def _add_g2(entities: list[Any], update_before_add: bool = False) -> None:
+    def _add_g2(
+        new_entities: Iterable[Entity], update_before_add: bool = False
+    ) -> None:
         assert update_before_add is False
-        added_g2.extend(entities)
+        added_g2.extend(list(new_entities))
 
-    await light_mod.async_setup_entry(hass, entry_g2, _add_g2)
+    add_g2_cb: AddEntitiesCallback = _add_g2
+    await light_mod.async_setup_entry(hass, cast(ConfigEntry[Any], entry_g2), add_g2_cb)
     assert len(added_g2) == 2  # COMMON_LIGHTS + G2_LIGHTS
 
     # Virtual only_g1 branch
@@ -137,12 +144,13 @@ async def test_light_async_setup_entry_adds_entities_for_g2_and_virtual_only_g1(
 
     added_v: list[Any] = []
 
-    def _add_v(entities: list[Any], update_before_add: bool = False) -> None:
+    def _add_v(new_entities: Iterable[Entity], update_before_add: bool = False) -> None:
         assert update_before_add is False
-        added_v.extend(entities)
+        added_v.extend(list(new_entities))
 
     caplog.clear()
-    await light_mod.async_setup_entry(hass, entry_v, _add_v)
+    add_v_cb: AddEntitiesCallback = _add_v
+    await light_mod.async_setup_entry(hass, cast(ConfigEntry[Any], entry_v), add_v_cb)
     assert len(added_v) == 4  # VIRTUAL_LIGHTS + LIGHTS
     assert any("G1 protocol activated" in r.message for r in caplog.records)
 

@@ -172,7 +172,7 @@ async def test_manual_mode_unique_id_falls_back_to_ip(
     assert result3["data"][CONFIG_FLOW_IP_ADDRESS] == "192.0.2.10"
     assert result3["data"][CONFIG_FLOW_HW_MODEL] == "RSLED50"
 
-    entry = cast(Any, result3["result"])
+    entry = result3["result"]
     assert entry.unique_id == "192.0.2.10"
 
 
@@ -219,7 +219,7 @@ async def test_manual_mode_unique_id_resolves_uuid_first_try(
     )
     assert result3["type"] == FlowResultType.CREATE_ENTRY
 
-    entry = cast(Any, result3["result"])
+    entry = result3["result"]
     assert entry.unique_id == "uuid-ok"
 
 
