@@ -249,7 +249,13 @@
     },
     "select": {
       "mode": {
-        "name": "Mode"
+        "name": "Mode",
+        "state": {
+          "auto": "Auto",
+          "manual": "Manual",
+          "timer": "Timer",
+          "other": "Other"
+        }
       },
       "model": {
         "name": "Model"
