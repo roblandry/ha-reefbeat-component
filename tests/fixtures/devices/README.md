@@ -7,8 +7,8 @@ These JSON/XML fixture trees (under the subfolders in this directory) are used b
 These fixtures were copied from the upstream simulator repository:
 
 - Repo: <https://github.com/roblandry/reefbeat-devices-simulator>
-- Commit: 30398ae89502d656b0374b94177e85d2f37bc326
-- Retrieved: 2026-01-18
+- Commit: 29dfcf787ff4d2e11a5ff526a885939ea2f7b51b
+- Retrieved: 2026-01-25
 
 ## Updating
 
