@@ -285,7 +285,8 @@
         "name": "Mode ATO",
         "state": {
           "auto": "Auto",
-          "empty": "Vide"
+          "empty": "Vide",
+          "pump_timeout": "Temps d'arrêt de la pompe"
         }
       },
       "auto_1": {
@@ -444,7 +445,11 @@
         "name": "Impulsion"
       },
       "pump_state": {
-        "name": "Etat de la pompe"
+        "name": "Etat de la pompe",
+        "state": {
+          "malfunction": "En panne",
+          "pump_on": "Allumée"
+        }
       },
       "remaining_days": {
         "name": "Jours restants"

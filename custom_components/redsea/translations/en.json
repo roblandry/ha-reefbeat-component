@@ -285,7 +285,8 @@
         "name": "ATO Mode",
         "state": {
           "auto": "Auto",
-          "empty": "Empty"
+          "empty": "Empty",
+          "pump_timeout": "Pump Timeout"
         }
       },
       "auto_1": {
@@ -444,7 +445,11 @@
         "name": "Pulse"
       },
       "pump_state": {
-        "name": "Pump State"
+        "name": "Pump State",
+        "state": {
+          "malfunction": "Malfunction",
+          "pump_on": "On"
+        }
       },
       "remaining_days": {
         "name": "Remaining days"
@@ -468,7 +473,12 @@
         "name": "State"
       },
       "status": {
-        "name": "Status"
+        "name": "Status",
+        "state": {
+          "on": "On",
+          "off": "Off",
+          "not_set_up": "Not Set Up"
+        }
       },
       "supplement": {
         "name": "Supplement"
