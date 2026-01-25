@@ -52,7 +52,15 @@ Setup:
 Notes:
 
 - The `pytest` hook runs in a pre-commit managed Python environment (local hook with `language: python` + `additional_dependencies`), so it does not depend on your current shell venv.
+- The first commit can take a while (and the first commit after `pre-commit clean` can take a while) because pre-commit will:
+
+  - create isolated hook environments under `~/.cache/pre-commit`,
+  - download/install the hook dependencies (notably Home Assistant test deps),
+  - then run `pyright` and `pytest -q`.
+
+  Subsequent commits are usually much faster because those environments are reused.
 - After changing hook configuration/dependencies, you may need: `pre-commit clean` (then rerun a commit or `pre-commit run --all-files`).
+- If it looks "stuck", run with verbose output to see progress: `pre-commit run --all-files -v`.
 - Hook versions (e.g. ruff `rev`) are kept up to date by the scheduled workflow in [.github/workflows/pre-commit-autoupdate.yml](.github/workflows/pre-commit-autoupdate.yml).
 
 ## Notes
