@@ -598,7 +598,7 @@ async def async_setup_entry(
             )
         )
 
-    async_add_entities(entities, update_before_add=True)
+    async_add_entities(entities)
 
 
 # -----------------------------------------------------------------------------
@@ -782,15 +782,20 @@ class ReefDoseNumberEntity(ReefBeatNumberEntity):
             }
             domain, ident = next(iter(cast(set[tuple[str, str]], base_identifiers)))
 
+            base_name = base_di.get("name")
+            if not isinstance(base_name, str) or not base_name:
+                base_name = self._device.title
+
             di_dict: dict[str, Any] = {
                 "identifiers": {(domain, ident, f"head_{self._head}")},
-                "name": f"{self._device.title} head {self._head}",
+                "name": f"{base_name} head {self._head}",
             }
 
             for key in (
                 "manufacturer",
                 "model",
                 "model_id",
+                "serial_number",
                 "hw_version",
                 "sw_version",
             ):
@@ -833,12 +838,17 @@ class ReefDoseNumberEntity(ReefBeatNumberEntity):
         base_identifiers = base_di.get("identifiers") or {(DOMAIN, self._device.serial)}
         domain, ident = next(iter(cast(set[tuple[str, str]], base_identifiers)))
         via_device = base_di.get("via_device")
+
+        base_name = base_di.get("name")
+        if not isinstance(base_name, str) or not base_name:
+            base_name = self._device.title
         di_dict: dict[str, Any] = {
             "identifiers": {(domain, ident, f"head_{head}")},
-            "name": f"{self._device.title} head {head}",
+            "name": f"{base_name} head {head}",
             "manufacturer": base_di.get("manufacturer"),
             "model": base_di.get("model"),
             "model_id": base_di.get("model_id"),
+            "serial_number": base_di.get("serial_number"),
             "hw_version": base_di.get("hw_version"),
             "sw_version": base_di.get("sw_version"),
         }
@@ -893,11 +903,15 @@ class ReefRunNumberEntity(ReefBeatNumberEntity):
         pump = self._run_description.pump
         base_di = cast(DeviceInfo, self._device.device_info)
         base_identifiers = base_di.get("identifiers") or {(DOMAIN, self._device.serial)}
-        domain, ident = next(iter(base_identifiers))
+        domain, ident = next(iter(cast(set[tuple[str, str]], base_identifiers)))
         via_device = base_di.get("via_device")
-        di: DeviceInfo = {
-            "identifiers": {(domain, f"{ident}_pump_{pump}")},
-            "name": f"{self._device.title} pump {pump}",
+
+        base_name = base_di.get("name")
+        if not isinstance(base_name, str) or not base_name:
+            base_name = self._device.title
+        di_dict: dict[str, Any] = {
+            "identifiers": {(domain, ident, f"pump_{pump}")},
+            "name": f"{base_name} pump {pump}",
             "manufacturer": base_di.get("manufacturer"),
             "model": base_di.get("model"),
             "model_id": base_di.get("model_id"),
@@ -905,8 +919,8 @@ class ReefRunNumberEntity(ReefBeatNumberEntity):
             "sw_version": base_di.get("sw_version"),
         }
         if via_device is not None:
-            di["via_device"] = via_device
-        self._attr_device_info = di
+            di_dict["via_device"] = via_device
+        self._attr_device_info = cast(DeviceInfo, di_dict)
 
 
 # REEFWAVE

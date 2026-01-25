@@ -216,8 +216,8 @@ def test_dose_device_info_head_extends_identifiers_and_name() -> None:
     entity = ReefDoseSensorEntity(cast(Any, device), desc)
 
     di = entity.device_info
-    identifiers = cast(set[tuple[str, str]], di.get("identifiers") or set())
-    assert ("redsea", "SERIAL_head_2") in identifiers
+    identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
+    assert ("redsea", "SERIAL", "head_2") in identifiers
     assert di.get("name") == "Device head 2"
     assert di.get("via_device") == ("redsea", "hub")
 

@@ -120,7 +120,7 @@ async def test_light_async_setup_entry_adds_entities_for_g2_and_virtual_only_g1(
     added_g2: list[Any] = []
 
     def _add_g2(entities: list[Any], update_before_add: bool = False) -> None:
-        assert update_before_add is True
+        assert update_before_add is False
         added_g2.extend(entities)
 
     await light_mod.async_setup_entry(hass, entry_g2, _add_g2)
@@ -138,7 +138,7 @@ async def test_light_async_setup_entry_adds_entities_for_g2_and_virtual_only_g1(
     added_v: list[Any] = []
 
     def _add_v(entities: list[Any], update_before_add: bool = False) -> None:
-        assert update_before_add is True
+        assert update_before_add is False
         added_v.extend(entities)
 
     caplog.clear()

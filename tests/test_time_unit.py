@@ -128,7 +128,7 @@ async def test_async_setup_entry_adds_mat_time_entity(
     )
 
     assert len(added) == 1
-    assert updates == [True]
+    assert updates == [False]
     assert isinstance(added[0], time_mod.ReefMatTimeEntity)
 
 

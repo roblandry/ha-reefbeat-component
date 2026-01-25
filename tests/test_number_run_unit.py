@@ -113,8 +113,8 @@ async def test_run_async_added_to_hass_sets_per_pump_device_info(hass: Any) -> N
 
     assert ent.device_info is not None
     di = cast(DeviceInfo, ent.device_info)
-    identifiers = cast(set[tuple[str, str]], di.get("identifiers") or set())
-    assert any("pump_2" in ident for _d, ident in identifiers)
+    identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
+    assert any("pump_2" in cast(tuple[Any, ...], ident) for ident in identifiers)
 
 
 @pytest.mark.asyncio

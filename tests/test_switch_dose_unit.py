@@ -34,9 +34,10 @@ async def test_dose_switch_device_info_adds_head_suffix() -> None:
     entity = ReefDoseSwitchEntity(cast(Any, device), desc)
     info = entity.device_info
 
-    assert info.get("name") == "Dose head 2"
-    identifiers = cast(set[tuple[str, str]], info.get("identifiers"))
-    assert ("redsea", "SERIAL_head_2") in identifiers
+    # Legacy behavior: suffix is appended to base device_info name (not title).
+    assert info.get("name") == "Device head 2"
+    identifiers = cast(set[tuple[Any, ...]], info.get("identifiers"))
+    assert ("redsea", "SERIAL", "head_2") in identifiers
 
 
 @pytest.mark.asyncio

@@ -101,6 +101,15 @@ def _read_device_endpoint(devices_dir: Path, profile: str, endpoint: str) -> Any
     profile: "DOSE4", "ATO", "LED", "RUN", "WAVE"
     endpoint: "/device-info", "/dashboard", "/head/3/settings", "/description.xml", "/"
     """
+    # Backward-compatible aliasing: older tests refer to a generic "LED" profile,
+    # but fixtures are stored as concrete revisions (e.g. LED_G2_115).
+    profile_path = devices_dir / profile
+    if not profile_path.exists() and profile == "LED":
+        for candidate in ("LED_G2_115", "LED_G1_160", "LED_G1_90"):
+            if (devices_dir / candidate).exists():
+                profile = candidate
+                break
+
     rel = endpoint.lstrip("/")  # "/device-info" -> "device-info"
     if rel == "":
         # root "/" maps to "<profile>/data"
@@ -174,6 +183,13 @@ def _build_ip_to_profile(devices_dir: Path) -> dict[str, str]:
 def _local_config_entry_from_profile(
     devices_dir: Path, profile: str
 ) -> MockConfigEntry:
+    # Keep fixture profile aliasing consistent with _read_device_endpoint().
+    if not (devices_dir / profile).exists() and profile == "LED":
+        for candidate in ("LED_G2_115", "LED_G1_160", "LED_G1_90"):
+            if (devices_dir / candidate).exists():
+                profile = candidate
+                break
+
     info = _read_device_info(devices_dir, profile)
     ip = _profile_to_ip(devices_dir).get(profile, "")
 

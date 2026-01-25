@@ -129,6 +129,32 @@ async def test_coordinator_serial_property_returns_title(hass: HomeAssistant) ->
 
 
 @pytest.mark.asyncio
+async def test_hw_version_does_not_use_chip_revision_and_sets_serial_number(
+    hass: HomeAssistant,
+) -> None:
+    entry = _make_entry(title="Device", ip="192.0.2.10", hw_model="RSDOSE2")
+    coordinator = ReefBeatCoordinator(hass, cast(Any, entry))
+
+    fake = _FakeAPI(
+        get_data_map={
+            "$.sources[?(@.name=='/device-info')].data.hw_revision": None,
+            "$.sources[?(@.name=='/firmware')].data.chip_version": None,
+            "$.sources[?(@.name=='/firmware')].data.chip_revision": 3,
+            "$.sources[?(@.name=='/device-info')].data.hwid": "HWID123",
+            "$.sources[?(@.name=='/firmware')].data.version": "3.0.0",
+        }
+    )
+    coordinator.my_api = cast(Any, fake)
+
+    # Serial number is provided separately (from /description.xml).
+    coordinator._device_serial_number = "SERIALX"  # type: ignore[attr-defined]
+
+    assert coordinator.model_id == "HWID123"
+    assert coordinator.hw_version is None
+    assert coordinator.device_info.get("serial_number") == "SERIALX"
+
+
+@pytest.mark.asyncio
 async def test_cloud_linked_handle_ask_for_link_calls_ask(hass: HomeAssistant) -> None:
     entry = _make_entry(title="MyDevice", ip="192.0.2.10", hw_model="RSLED50")
     coordinator = ReefBeatCloudLinkedCoordinator(hass, cast(Any, entry))
@@ -307,7 +333,7 @@ async def test_device_info_properties_and_fallbacks(hass: HomeAssistant) -> None
             "$.sources[?(@.name=='/')].data.uuid": "uuid-123",
             # model/hw/sw
             "$.sources[?(@.name=='/device-info')].data.hw_model": "RSLED50",
-            "$.sources[?(@.name=='/device-info')].data.hw_revision": None,
+            "$.sources[?(@.name=='/device-info')].data.hw_revision": "hw-r1",
             "$.sources[?(@.name=='/firmware')].data.chip_version": "chip-v",
             "$.sources[?(@.name=='/firmware')].data.version": None,
             # board/framework default when falsey
@@ -320,7 +346,7 @@ async def test_device_info_properties_and_fallbacks(hass: HomeAssistant) -> None
     assert coordinator.model_id == "uuid-123"
     assert coordinator.board == "esp32"
     assert coordinator.framework == "i"
-    assert coordinator.hw_version == "chip-v"
+    assert coordinator.hw_version == "hw-r1"
     assert coordinator.sw_version == "unknown"
 
     device_info = coordinator.device_info
@@ -328,6 +354,7 @@ async def test_device_info_properties_and_fallbacks(hass: HomeAssistant) -> None
         set[tuple[str, str]], device_info.get("identifiers")
     )
     assert device_info.get("model") == "RSLED50"
+    assert device_info.get("serial_number") is None
 
     assert coordinator.detected_id == "192.0.2.10 RSLED50 My Device"
     assert coordinator.unload() is None

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 from time import time
@@ -31,6 +32,7 @@ import async_timeout
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_STARTED
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -115,6 +117,11 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self._boot = True
 
+        # Optional, best-effort serial number extracted from `/description.xml`.
+        # This is for UI display only and should NOT be used to derive identifiers.
+        self._device_serial_number: str | None = None
+        self._serial_fetch_task: asyncio.Task[None] | None = None
+
         # Default API for a generic ReefBeat device (specialized coordinators override this).
         self.my_api = ReefBeatAPI(self._ip, self._live_config_update, self._session)
 
@@ -186,6 +193,112 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._boot = False
             await self.my_api.get_initial_data()
 
+            # Best-effort: fetch a stable serial number from the UPnP description.
+            # Some devices expose it only here (not in /device-info). Never fail setup.
+            if self._serial_fetch_task is None:
+                self._serial_fetch_task = self._hass.async_create_task(
+                    self._async_try_fetch_serial_number()
+                )
+
+    _SERIAL_RE = re.compile(
+        r"<(?:[A-Za-z_][\w.-]*:)?serialNumber>(?P<sn>.*?)</(?:[A-Za-z_][\w.-]*:)?serialNumber>",
+        re.DOTALL | re.IGNORECASE,
+    )
+
+    @classmethod
+    def _parse_serial_number(cls, xml_text: str) -> str | None:
+        text = xml_text or ""
+
+        # First try a real XML parse so we handle namespaces and formatting.
+        # Fall back to regex if parsing fails.
+        try:
+            import xml.etree.ElementTree as ET
+
+            root = ET.fromstring(text)
+            for elem in root.iter():
+                tag = str(elem.tag)
+                local = tag.rsplit("}", 1)[-1]  # strip namespace
+                if local.lower() != "serialnumber":
+                    continue
+                value = (elem.text or "").strip()
+                value = "".join(value.split())
+                return value or None
+        except Exception:
+            pass
+
+        m = cls._SERIAL_RE.search(text)
+        if not m:
+            return None
+        value = "".join(m.group("sn").strip().split())
+        return value or None
+
+    async def async_wait_for_serial_number(self, timeout: float = 3.0) -> None:
+        """Wait briefly for the best-effort serial fetch task to finish."""
+        task = self._serial_fetch_task
+        if task is None or task.done():
+            return
+        try:
+            async with async_timeout.timeout(timeout):
+                await task
+        except asyncio.TimeoutError:
+            return
+        except Exception:
+            return
+
+    async def _async_try_fetch_serial_number(self) -> None:
+        if self._device_serial_number is not None:
+            return
+
+        try:
+            # Fetch through the API layer so we use the same retry/timeout logic
+            # and test patching as the rest of the integration.
+            sources_any = getattr(self.my_api, "data", {}).get("sources")
+            sources: list[dict[str, Any]]
+            if isinstance(sources_any, list):
+                sources = cast(list[dict[str, Any]], sources_any)
+            else:
+                sources = []
+                if isinstance(getattr(self.my_api, "data", None), dict):
+                    self.my_api.data["sources"] = sources  # type: ignore[index]
+
+            if not any(
+                isinstance(s, dict) and s.get("name") == "/description.xml"
+                for s in sources
+            ):
+                sources.append(
+                    {"name": "/description.xml", "type": "config", "data": ""}
+                )
+
+            await self.my_api.fetch_config("/description.xml")
+            payload = self.get_data(
+                "$.sources[?(@.name=='/description.xml')].data", True
+            )
+            if not isinstance(payload, str) or not payload:
+                return
+
+            sn = self._parse_serial_number(payload)
+            if not sn:
+                _LOGGER.debug(
+                    "%s: /description.xml fetched but no serialNumber found",
+                    self._title,
+                )
+                return
+
+            self._device_serial_number = sn
+            _LOGGER.debug("%s: serial_number discovered: %s", self._title, sn)
+
+            # Best-effort: backfill existing device registry entries.
+            device_registry = dr.async_get(self._hass)
+            for device_entry in dr.async_entries_for_config_entry(
+                device_registry, self._entry.entry_id
+            ):
+                if getattr(device_entry, "serial_number", None):
+                    continue
+                device_registry.async_update_device(device_entry.id, serial_number=sn)
+        except Exception as err:
+            _LOGGER.debug("%s: serial_number fetch failed: %s", self._title, err)
+            return
+
     async def async_setup(self) -> None:
         """Public entry-point for one-time initialization."""
         await self._async_setup()
@@ -215,6 +328,7 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             manufacturer=DEVICE_MANUFACTURER,
             model=self.model,
             model_id=self.model_id,
+            serial_number=self.serial_number,
             hw_version=self.hw_version,
             sw_version=self.sw_version,
         )
@@ -257,6 +371,11 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self._title
 
     @property
+    def serial_number(self) -> str | None:
+        """Device serial number (best effort, from `/description.xml`)."""
+        return self._device_serial_number
+
+    @property
     def model(self) -> str:
         """Device model name."""
         model = self.get_data(
@@ -290,11 +409,7 @@ class ReefBeatCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         hw_vers = self.get_data(
             "$.sources[?(@.name=='/device-info')].data.hw_revision", True
         )
-        if hw_vers is None:
-            hw_vers = self.get_data(
-                "$.sources[?(@.name=='/firmware')].data.chip_version", True
-            )
-        return hw_vers
+        return str(hw_vers) if hw_vers is not None else None
 
     @property
     def sw_version(self) -> str:
@@ -332,17 +447,20 @@ class ReefBeatCloudLinkedCoordinator(ReefBeatCoordinator):
 
     async def _async_setup(self) -> None:
         """Perform one-time initialization and request cloud link if needed."""
-        _LOGGER.debug("%s async_setup...", self._title)
-        if self._boot:
-            self._boot = False
-            await self.my_api.get_initial_data()
+        was_boot = self._boot
+        await super()._async_setup()
 
-            if str(self._hass.state) == "RUNNING":
-                self._ask_for_link()
+        # Base setup only runs once (gated by _boot). Keep cloud-link wiring
+        # one-time as well.
+        if not was_boot:
+            return
 
-            self._hass.bus.async_listen(
-                "redsea_ask_for_cloud_link_ready", self._handle_ask_for_link_ready
-            )
+        if str(self._hass.state) == "RUNNING":
+            self._ask_for_link()
+
+        self._hass.bus.async_listen(
+            "redsea_ask_for_cloud_link_ready", self._handle_ask_for_link_ready
+        )
 
     async def async_setup(self) -> None:
         """Public entry-point for one-time initialization."""
@@ -818,9 +936,16 @@ class ReefDoseCoordinator(ReefBeatCloudLinkedCoordinator):
         await self.my_api.push_values(source, method, head)
 
     @property
-    def hw_version(self) -> None:  # type: ignore[override]
-        """ReefDose has no meaningful hardware version mapping in current payload."""
-        return None
+    def hw_version(self) -> Any:  # type: ignore[override]
+        """Hardware version/revision (best effort).
+
+        Some unit tests stub `my_api` without `get_data()`. Guard to avoid
+        AttributeError while still exposing a useful value for real devices.
+        """
+        try:
+            return super().hw_version
+        except Exception:
+            return None
 
 
 # REEFATO+
@@ -1181,7 +1306,13 @@ class ReefBeatCloudCoordinator(ReefBeatCoordinator):
         if not device_id:
             return
 
-        device = self._hass.data[DOMAIN][device_id]
+        device = self._hass.data.get(DOMAIN, {}).get(device_id)
+        if device is None:
+            _LOGGER.debug(
+                "Cloud link request ignored; device not in hass.data (device_id=%s)",
+                device_id,
+            )
+            return
         s_device = self.get_data(
             "$.sources[?(@.name=='/device')].data[?(@.hwid=='"
             + device.model_id

@@ -1444,14 +1444,25 @@ class ReefDoseSensorEntity(ReefBeatSensorEntity):
         base_identifiers = base_di.get("identifiers") or {(DOMAIN, self._device.serial)}
         domain, ident = next(iter(cast(set[tuple[str, str]], base_identifiers)))
 
+        base_name = base_di.get("name")
+        if not isinstance(base_name, str) or not base_name:
+            base_name = self._device.title
+
         # DeviceInfo is a TypedDict; copying values from a generic dict makes mypy/pyright
         # widen types to object | None, so we guard and only assign strings (or omit keys).
         di_dict: dict[str, Any] = {
             "identifiers": {(domain, ident, f"head_{self._head}")},
-            "name": f"{self._device.title} head {self._head}",
+            "name": f"{base_name} head {self._head}",
         }
 
-        for key in ("manufacturer", "model", "model_id", "hw_version", "sw_version"):
+        for key in (
+            "manufacturer",
+            "model",
+            "model_id",
+            "serial_number",
+            "hw_version",
+            "sw_version",
+        ):
             val = base_di.get(key)
             if isinstance(val, str) or val is None:
                 di_dict[key] = val
@@ -1542,7 +1553,7 @@ class ReefRunSensorEntity(ReefBeatSensorEntity):
     def device_info(self) -> DeviceInfo:
         """Return device info extended with the pump identifier."""
         di = dict(self._device.device_info)
-        di["name"] = f"{di.get('name', '')}_pump_{self._pump}"
+        di["name"] = f"{di.get('name', '')} pump {self._pump}"
 
         identifiers_set = di.get("identifiers")
         if identifiers_set:

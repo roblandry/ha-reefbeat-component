@@ -88,7 +88,7 @@ async def async_setup_entry(
         if description.exists_fn(device)
     )
 
-    async_add_entities(entities)
+    async_add_entities(entities, update_before_add=False)
 
 
 # -----------------------------------------------------------------------------

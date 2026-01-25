@@ -68,7 +68,7 @@ def test_reefrun_select_device_info_extends_identifiers_and_name(
     ent = ReefRunSelectEntity(cast(Any, device), desc)
 
     di = cast(dict[str, Any], ent.device_info)
-    assert di["name"].endswith("_pump_2")
+    assert di["name"].endswith(" pump 2")
 
     identifiers = di.get("identifiers")
     assert identifiers

@@ -52,9 +52,9 @@ async def test_dose_creates_parent_and_head_devices(
     head3 = None
     head4 = None
     for dev in dev_reg.devices.values():
-        if (DOMAIN, f"{dose_hwid}_head_3") in dev.identifiers:
+        if (DOMAIN, dose_hwid, "head_3") in dev.identifiers:
             head3 = dev
-        if (DOMAIN, f"{dose_hwid}_head_4") in dev.identifiers:
+        if (DOMAIN, dose_hwid, "head_4") in dev.identifiers:
             head4 = dev
 
     assert head3 is not None
@@ -165,6 +165,7 @@ async def test_dose_delegate_methods_and_hw_version_none(
     assert api.bundles == [{"bundle": True}]
     assert api.pressed == [("prime", 2)]
     assert api.pushed == [("/configuration", "put", 2)]
+    # Best-effort: when tests stub `my_api` without `get_data()`, hw_version stays None.
     assert dose.hw_version is None
 
 

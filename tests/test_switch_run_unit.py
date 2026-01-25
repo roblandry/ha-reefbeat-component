@@ -33,7 +33,7 @@ async def test_run_switch_device_info_adds_pump_suffix() -> None:
     entity = ReefRunSwitchEntity(cast(Any, device), desc)
     info = entity.device_info
 
-    assert "_pump_3" in cast(str, info.get("name"))
+    assert " pump 3" in cast(str, info.get("name"))
     identifiers = info.get("identifiers")
     assert identifiers is not None
 

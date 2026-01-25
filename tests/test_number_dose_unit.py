@@ -58,8 +58,8 @@ def test_dose_device_info_head_extends_identifiers_and_name() -> None:
 
     assert ent.device_info is not None
     di = cast(DeviceInfo, ent.device_info)
-    identifiers = cast(set[tuple[str, str]], di.get("identifiers") or set())
-    assert ("redsea", "SERIAL_head_2") in identifiers
+    identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
+    assert ("redsea", "SERIAL", "head_2") in identifiers
     assert di.get("name") == "Device head 2"
 
 
@@ -165,5 +165,5 @@ async def test_dose_async_added_to_hass_sets_per_head_device_info(hass: Any) -> 
 
     assert ent.device_info is not None
     di = cast(DeviceInfo, ent.device_info)
-    identifiers = cast(set[tuple[str, str]], di.get("identifiers") or set())
-    assert ("redsea", "SERIAL_head_1") in identifiers
+    identifiers = cast(set[tuple[Any, ...]], di.get("identifiers") or set())
+    assert ("redsea", "SERIAL", "head_1") in identifiers

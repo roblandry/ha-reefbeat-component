@@ -12,8 +12,9 @@ from __future__ import annotations
 import json  # pyright: ignore[reportUnusedImport]  # noqa: F401
 import logging
 import re
+from collections.abc import Awaitable, Callable
 from contextlib import suppress
-from typing import Any
+from typing import Any, cast
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import (
@@ -95,6 +96,61 @@ async def _migrate_head_device_names(hass: HomeAssistant, entry: ConfigEntry) ->
         device_registry.async_update_device(device_entry.id, name=new_name)
 
 
+async def _migrate_serial_numbers(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Backfill device registry serial numbers when available.
+
+    Home Assistant does not necessarily update all device fields for already-existing
+    devices on every startup. When we learn a serial number (via `/description.xml`),
+    populate it for devices created previously.
+    """
+    # Cloud account entries do not have `/description.xml` and therefore no stable
+    # device serial numbers to backfill.
+    if CONFIG_FLOW_CLOUD_USERNAME in entry.data:
+        return
+
+    device_registry = dr.async_get(hass)
+    device_entries = list(
+        dr.async_entries_for_config_entry(device_registry, entry.entry_id)
+    )
+    missing_serial = [
+        d for d in device_entries if not getattr(d, "serial_number", None)
+    ]
+    if not missing_serial:
+        return
+
+    _LOGGER.debug(
+        "Migrating serial numbers for entry_id=%s (missing=%s)",
+        entry.entry_id,
+        len(missing_serial),
+    )
+    coordinator = hass.data.get(DOMAIN, {}).get(entry.entry_id)
+    if coordinator is None:
+        _LOGGER.debug("Coordinator is NONE for %s", entry.entry_id)
+        return
+
+    # Serial number fetch is best-effort and happens asynchronously during
+    # coordinator setup. Wait briefly so backfill can occur after devices exist.
+    wait_for_sn = getattr(coordinator, "async_wait_for_serial_number", None)
+    if callable(wait_for_sn):
+        with suppress(Exception):
+            await cast(Callable[[float], Awaitable[None]], wait_for_sn)(3.0)
+
+    serial_number = getattr(coordinator, "serial_number", None)
+    if not isinstance(serial_number, str) or not serial_number:
+        _LOGGER.debug("Serial number is NONE for %s", entry.entry_id)
+        return
+
+    _LOGGER.debug(
+        "Backfilling serial number '%s' for entry_id=%s", serial_number, entry.entry_id
+    )
+    for device_entry in missing_serial:
+        if getattr(device_entry, "serial_number", None):
+            continue
+        device_registry.async_update_device(
+            device_entry.id, serial_number=serial_number
+        )
+
+
 # =============================================================================
 # Helpers
 # =============================================================================
@@ -156,10 +212,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
         return False
 
+    # Store early to avoid races where coordinators fire bus events during
+    # `async_setup()` (e.g., cloud-link requests) before we populate hass.data.
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
     try:
         await coordinator.async_setup()
     except Exception:
         _LOGGER.exception("Failed to setup coordinator for entry_id=%s", entry.entry_id)
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
         return False
 
     # Perform a single first refresh up-front so platform setup doesn't block on
@@ -168,16 +229,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     try:
         await coordinator.async_config_entry_first_refresh()
     except Exception as err:
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
         raise ConfigEntryNotReady(
             f"Initial refresh failed for entry_id={entry.entry_id}: {err}"
         ) from err
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     # Best-effort cosmetic migration; doesn't affect identifiers or entities.
     with suppress(Exception):
         await _migrate_head_device_names(hass, entry)
+
+    # Best-effort metadata backfill for existing devices.
+    with suppress(Exception):
+        await _migrate_serial_numbers(hass, entry)
 
     entry.async_on_unload(entry.add_update_listener(update_listener))
     return True
