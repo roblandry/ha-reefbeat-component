@@ -10,12 +10,33 @@
         "data": {
           "add_type": "Méthode d'ajout",
           "hw_model": "Modèle hardware",
-          "ip_address": "Adr. IP ou reseau (ex:10.0.1.0/255.255.255.0)",
+          "ip_address": "Appareil",
           "platform": "Plateforme",
           "scan_interval": "Intervalle de rafraichissement",
           "virtual_led": "Nouvelle Led virtuelle"
         },
         "title": "Définir une nouvelle entitée"
+      },
+      "enter_ip": {
+        "data": {
+          "ip_address": "Adresse IP ou CIDR"
+        },
+        "description": "Saisissez un CIDR à scanner (ex. 10.0.30.0/24). \nSi vous saisissez une IP qui n'est pas un appareil ReefBeat, son /24 sera scanné.",
+        "title": "Saisir IP/CIDR"
+      },
+      "select_subnetwork": {
+        "data": {
+          "subnetwork": "Sous-réseau à scanner"
+        },
+        "description": "Plusieurs réseaux locaux ont été détectés. Sélectionnez le sous-réseau à scanner.",
+        "title": "Sélection du sous-réseau"
+      },
+      "select_device": {
+        "data": {
+          "ip_address": "Appareil"
+        },
+        "description": "Sélectionnez un appareil ou saisissez une adresse IP/CIDR.{scan_reason}",
+        "title": "Sélection de l'appareil"
       }
     }
   },
@@ -667,13 +688,17 @@
       "options": {
         "cloud_api": "API Cloud ",
         "local_detect": "Détection locale",
-        "manual_mode": "Mode Manuel",
         "virtual_led": "Led virtuelle"
+      }
+    },
+    "subnetwork": {
+      "options": {
+        "enter_ip": "Saisir IP/CIDR"
       }
     },
     "ip_address": {
       "options": {
-        "virtual_led": "Ajouter une LED virtuelle"
+        "enter_ip": "Saisir IP/CIDR"
       }
     }
   },

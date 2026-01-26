@@ -3,7 +3,6 @@
 Supports:
 - Adding a ReefBeat Cloud account
 - Auto-detecting local devices on the LAN
-- Manually adding a local device by IP
 - Creating a virtual LED entry
 - Options flow (scan interval, config mode, etc.)
 """
@@ -22,13 +21,13 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import network as ha_network
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .auto_detect import ReefBeatInfo, get_reefbeats, get_unique_id, is_reefbeat
 from .const import (
     ADD_CLOUD_API,
     ADD_LOCAL_DETECT,
-    ADD_MANUAL_MODE,
     ADD_TYPES,
     ATO_SCAN_INTERVAL,
     CLOUD_DEVICE_TYPE,
@@ -42,8 +41,10 @@ from .const import (
     CONFIG_FLOW_INTENSITY_COMPENSATION,
     CONFIG_FLOW_IP_ADDRESS,
     CONFIG_FLOW_SCAN_INTERVAL,
+    CONFIG_FLOW_SUBNETWORK,
     DOMAIN,
     DOSE_SCAN_INTERVAL,
+    ENTER_IP,
     HTTP_DELAY_BETWEEN_RETRY,
     HTTP_MAX_RETRY,
     HW_ATO_IDS,
@@ -138,7 +139,14 @@ def get_scan_interval_safe(hw_model: str | None) -> int:
 
 
 def _is_cidr(address: str) -> bool:
-    """Return True if the string looks like an IPv4 CIDR (e.g. 192.168.1.0/24)."""
+    """Return True if the string looks like an IPv4 CIDR (e.g. 192.168.1.0/24).
+
+    Note: A plain IP like "192.168.1.10" is not treated as a CIDR. This keeps
+    manual IP entry working (probe a single device) while still allowing
+    power-users to input an explicit CIDR to scan.
+    """
+    if "/" not in address:
+        return False
     try:
         ipaddress.ip_network(address, strict=False)
         return True
@@ -157,6 +165,62 @@ def _device_to_string(d: ReefBeatInfo) -> str:
     return f"{ip} {hw_model} {friendly_name}".strip()
 
 
+async def _async_get_ipv4_subnet_choices(hass: HomeAssistant) -> list[str]:
+    """Return IPv4 CIDR choices derived from HA's configured adapters.
+
+    This is intentionally fast (no scanning), and is used only to decide whether
+    we should ask the user which subnet to scan.
+    """
+
+    try:
+        # Home Assistant provides async_get_adapters(). Some older versions have
+        # get_adapters(); support both without importing version-specific types.
+        ha_net_any: Any = cast(Any, ha_network)
+        if hasattr(ha_net_any, "async_get_adapters"):
+            adapters = await ha_net_any.async_get_adapters(hass)
+        else:
+            adapters = ha_net_any.get_adapters(hass)
+    except Exception:  # pragma: no cover
+        return []
+
+    networks: set[str] = set()
+
+    for adapter in adapters:
+        ipv4_addrs: Any = getattr(adapter, "ipv4", None)
+        if ipv4_addrs is None and isinstance(adapter, dict):
+            ipv4_addrs = cast(dict[str, Any], adapter).get("ipv4")
+        if not ipv4_addrs:
+            continue
+
+        for addr in cast(list[Any], ipv4_addrs):
+            address: Any = getattr(addr, "address", None)
+            prefix: Any = getattr(addr, "network_prefix", None)
+            if address is None and isinstance(addr, dict):
+                addr_dict = cast(dict[str, Any], addr)
+                address = addr_dict.get("address")
+                prefix = addr_dict.get("network_prefix")
+            if not address or prefix is None:
+                continue
+
+            try:
+                net = ipaddress.ip_network(
+                    f"{str(address)}/{int(prefix)}",
+                    strict=False,
+                )
+            except Exception:
+                continue
+
+            if not isinstance(net, ipaddress.IPv4Network):
+                continue
+            if net.is_loopback:
+                continue
+
+            networks.add(str(net))
+
+    # Sort for stable UI.
+    return sorted(networks, key=lambda s: ipaddress.ip_network(s).network_address)
+
+
 # Config flow
 
 # =============================================================================
@@ -169,6 +233,10 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
     CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._select_device_note: str | None = None
 
     async def _unique_id(self, user_input: dict[str, Any]) -> str:
         """Resolve device UUID for a local device entry (retrying as needed)."""
@@ -189,8 +257,6 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
         """Handle the initial step and subsequent submissions."""
-        subnetwork: str | None = None
-
         # Step 1: choose add type
         if user_input is None:
             return self.async_show_form(
@@ -221,7 +287,16 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
             if add_type == ADD_LOCAL_DETECT:
-                return await self.auto_detect(subnetwork)
+                # If HA has multiple IPv4 networks configured, ask which one to scan.
+                subnet_choices = await _async_get_ipv4_subnet_choices(self.hass)
+                if len(subnet_choices) > 1:
+                    return await self.async_step_select_subnetwork()
+                if len(subnet_choices) == 1:
+                    self._subnetwork = subnet_choices[0]
+                    return await self.auto_detect(self._subnetwork)
+                # Fallback to legacy behavior (infer subnet from default route).
+                self._subnetwork = None
+                return await self.auto_detect(None)
 
             if add_type == VIRTUAL_LED:
                 title = f"{VIRTUAL_LED}-{int(time())}"
@@ -231,12 +306,6 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 _LOGGER.debug("Creating virtual LED entry with unique_id '%s'", title)
                 await self.async_set_unique_id(title)
                 return self.async_create_entry(title=title, data=user_input)
-
-            if add_type == ADD_MANUAL_MODE:
-                return self.async_show_form(
-                    step_id="user",
-                    data_schema=vol.Schema({vol.Required(CONFIG_FLOW_IP_ADDRESS): str}),
-                )
 
         # Step 3: create entry from submitted values
         _LOGGER.debug("Config flow submission keys: %s", list(user_input.keys()))
@@ -359,6 +428,100 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         # Should not happen, but keep flow stable
         return self.async_abort(reason="unknown")
 
+    async def async_step_select_subnetwork(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Prompt for subnet selection when multiple local subnets exist."""
+        subnet_choices = await _async_get_ipv4_subnet_choices(self.hass)
+
+        # If we no longer have multiple choices, just proceed.
+        if len(subnet_choices) <= 1:
+            return await self.auto_detect(subnet_choices[0] if subnet_choices else None)
+
+        if user_input is None:
+            # Also allow manual scan/probe by entering an explicit IP/CIDR.
+            choices = [*subnet_choices, ENTER_IP]
+            return self.async_show_form(
+                step_id="select_subnetwork",
+                data_schema=vol.Schema(
+                    {vol.Required(CONFIG_FLOW_SUBNETWORK): vol.In(choices)}
+                ),
+            )
+
+        if str(user_input[CONFIG_FLOW_SUBNETWORK]) == ENTER_IP:
+            return await self.async_step_enter_ip()
+
+        self._subnetwork = str(user_input[CONFIG_FLOW_SUBNETWORK])
+        return await self.auto_detect(self._subnetwork)
+
+    async def async_step_select_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Handle device selection after scanning the chosen subnet."""
+        if user_input is None:
+            subnetwork = getattr(self, "_subnetwork", None)
+            return await self.auto_detect(cast(str | None, subnetwork))
+
+        if str(user_input.get(CONFIG_FLOW_IP_ADDRESS, "")) == ENTER_IP:
+            return await self.async_step_enter_ip()
+
+        # Reuse the main submission handler to create the entry.
+        return await self.async_step_user(user_input)
+
+    async def async_step_enter_ip(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Prompt for a manual IP/CIDR to probe/scan."""
+        if user_input is None:
+            return self.async_show_form(
+                step_id="enter_ip",
+                data_schema=vol.Schema({vol.Required(CONFIG_FLOW_IP_ADDRESS): str}),
+            )
+
+        value = str(user_input[CONFIG_FLOW_IP_ADDRESS]).strip()
+        if _is_cidr(value):
+            # Scan the user-provided CIDR.
+            self._subnetwork = value
+            return await self.auto_detect(value)
+
+        # Plain IP: probe first; if it isn't a ReefBeat device, fall back to
+        # scanning its /24 (common VLAN/subnet setup).
+        try:
+            ip = str(ipaddress.ip_address(value))
+        except Exception:
+            return self.async_show_form(
+                step_id="enter_ip",
+                data_schema=vol.Schema({vol.Required(CONFIG_FLOW_IP_ADDRESS): str}),
+                errors={"base": "invalid_ip"},
+            )
+
+        (
+            status,
+            ip,
+            hw_model,
+            friendly_name,
+            _uuid,
+        ) = await self.hass.async_add_executor_job(partial(is_reefbeat, ip=ip))
+
+        if status is True and hw_model:
+            conf = _device_to_string(
+                {
+                    "ip": ip,
+                    "hw_model": hw_model,
+                    "friendly_name": friendly_name or "",
+                }
+            )
+            return await self.async_step_user({CONFIG_FLOW_IP_ADDRESS: conf})
+
+        # Not a ReefBeat device (or probe failed) -> scan the /24 of the IP.
+        cidr = str(ipaddress.ip_network(f"{ip}/24", strict=False))
+        self._select_device_note = (
+            f"No ReefBeat device was found at {ip}. Scanned {cidr} instead."
+        )
+        _LOGGER.info("%s", self._select_device_note)
+        self._subnetwork = cidr
+        return await self.auto_detect(cidr)
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> config_entries.OptionsFlow:
@@ -389,10 +552,25 @@ class ReefBeatConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.info("Available devices: %s", available_devices)
 
         available_devices_s = list(map(_device_to_string, available_devices))
-        available_devices_s += [VIRTUAL_LED]
+        available_devices_s.append(ENTER_IP)
+
+        if not available_devices and subnetwork:
+            # Keep it informative: nothing found on this CIDR, but keep the
+            # Enter IP/CIDR option available.
+            self._select_device_note = (
+                self._select_device_note
+                or f"No ReefBeat devices were found on {subnetwork}."
+            )
+
+        note = self._select_device_note
+        self._select_device_note = None
 
         return self.async_show_form(
-            step_id="user",
+            step_id="select_device",
+            description_placeholders={
+                # Leave blank unless we have something helpful to say.
+                "scan_reason": f"\n\n{note}" if note else "",
+            },
             data_schema=vol.Schema(
                 {vol.Required(CONFIG_FLOW_IP_ADDRESS): vol.In(available_devices_s)}
             ),

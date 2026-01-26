@@ -6,11 +6,32 @@
     },
     "flow_title": "ReefBeat configuration",
     "step": {
+      "enter_ip": {
+        "data": {
+          "ip_address": "IP address or CIDR"
+        },
+        "description": "Enter a CIDR to scan (e.g. 10.0.30.0/24). \nIf you enter a single IP that isn't a ReefBeat device, its /24 will be scanned.",
+        "title": "Enter IP/CIDR"
+      },
+      "select_subnetwork": {
+        "data": {
+          "subnetwork": "Subnet to scan"
+        },
+        "description": "Multiple local networks were found. Select which subnet to scan.",
+        "title": "Select subnet"
+      },
+      "select_device": {
+        "data": {
+          "ip_address": "Device"
+        },
+        "description": "Select a device or enter IP/CIDR.{scan_reason}",
+        "title": "Select device"
+      },
       "user": {
         "data": {
           "add_type": "Choose your adding method",
           "hw_model": "Hardware Model",
-          "ip_address": "IP or subnet Addr. (ex:10.0.1.0/255.255.255.0)",
+          "ip_address": "Device",
           "platform": "Platform",
           "scan_interval": "scan interval",
           "virtual_led": "New virtual LED Controler"
@@ -672,13 +693,17 @@
       "options": {
         "cloud_api": "Cloud API",
         "local_detect": "Local detection",
-        "manual_mode": "Manual Mode",
         "virtual_led": "Virtual Led"
+      }
+    },
+    "subnetwork": {
+      "options": {
+        "enter_ip": "Enter IP/CIDR"
       }
     },
     "ip_address": {
       "options": {
-        "virtual_led": "Add Virtual LED"
+        "enter_ip": "Enter IP/CIDR"
       }
     }
   },

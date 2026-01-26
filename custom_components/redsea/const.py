@@ -56,16 +56,21 @@ CLOUD_SERVER_ADDR: Final[str] = "cloud.reef-beat.com"
 
 CONFIG_FLOW_IP_ADDRESS: Final[str] = "ip_address"
 
+# Used in config flow when multiple local subnets are detected.
+CONFIG_FLOW_SUBNETWORK: Final[str] = "subnetwork"
+
 CONFIG_FLOW_ADD_TYPE: Final[str] = "add_type"
 ADD_CLOUD_API: Final[str] = "cloud_api"
 ADD_LOCAL_DETECT: Final[str] = "local_detect"
-ADD_MANUAL_MODE: Final[str] = "manual_mode"
 VIRTUAL_LED: Final[str] = "virtual_led"
+
+# Sentinel option shown in local-detection pickers to allow users to enter an
+# explicit IP address or CIDR to scan.
+ENTER_IP: Final[str] = "enter_ip"
 
 ADD_TYPES: Final[tuple[str, ...]] = (
     ADD_CLOUD_API,
     ADD_LOCAL_DETECT,
-    ADD_MANUAL_MODE,
     VIRTUAL_LED,
 )
 

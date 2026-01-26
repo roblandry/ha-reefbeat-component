@@ -180,7 +180,7 @@ Or search for "redsea" or "reefbeat" in hacs
 # Common functions
  
  ## Add device
-When adding a new device you have 4 choices:
+When adding a new device you have 3 choices:
 
 <p align="center">
   <img src="https://github.com/Elwinmage/ha-reefbeat-component/blob/main/doc/img/add_devices_main.png" alt="Image">
@@ -199,13 +199,17 @@ When adding a new device you have 4 choices:
 </p>  
       
  ### Auto detect on private network
-If not on same network read  [this](#my-device-is-not-detected) and use the  ["Manual Mode"](https://github.com/Elwinmage/ha-reefbeat-component/#manual-mode)
+If not on same network read [this](#my-device-is-not-detected). Local detection includes an "Enter IP/CIDR…" option for scanning/probing outside Home Assistant's primary subnet.
 <p align="center">
   <img src="https://github.com/Elwinmage/ha-reefbeat-component/blob/main/doc/img/auto_detect.png" alt="Image">
 </p> 
 
-### Manual Mode
-You can put your device IP or the network address to have auto detection.
+### Enter IP/CIDR (from Local detection)
+
+When using Local detection, you can choose "Enter IP/CIDR…" to target another network:
+
+- Enter a single IP (example: `10.0.30.12`) to try that device first.
+- Enter a CIDR (example: `10.0.30.0/24`) to scan that subnet directly (no single-device probe first).
 
 <p align="center">
   <img src="https://github.com/Elwinmage/ha-reefbeat-component/blob/main/doc/img/add_devices_manual.png" alt="Image">
@@ -523,8 +527,10 @@ Waves and Leds parameters ares sorted by Tanks.
 
 ## My device is not detected
  - try to relaunch the auto-detection with the "add entry" button. Sometimes devices do not respond because they are busy.
- - If your redsea devices are not on the same subnetwork than your Home Assistant, auto-detection will first fail and propose you to enter the ip of your device or the address of the subnetwork where your devices are. For subnetwork detection please use the format IP/MASK like this example : 192.168.14.0/255.255.255.0.
- - You can also use the [manual mode ](https://github.com/Elwinmage/ha-reefbeat-component?tab=readme-ov-file#manual-mode)
+ - If your Red Sea devices are not on the same subnet as Home Assistant, Local detection may not find them automatically.
+   Use the Local detection flow and choose "Enter IP/CIDR…":
+   - Single IP (example: `10.0.30.12`) tries that device first.
+   - CIDR (example: `10.0.30.0/24`) scans that subnet directly.
 
 <p align="center">
   <img src="https://github.com/Elwinmage/ha-reefbeat-component/blob/main/doc/img/subnetwork.png" alt="Image">
