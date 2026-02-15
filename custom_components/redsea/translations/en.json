@@ -291,16 +291,6 @@
       "acclimation_start_intensity_factor": {
         "name": "Acclimation Start Intensity Factor"
       },
-      "ato_mode": {
-        "name": "ATO Mode",
-        "state": {
-          "auto": "Auto",
-          "empty": "Empty",
-          "malfunction": "Malfunction",
-          "pump_timeout": "Pump Timeout",
-          "user_test": "User Test"
-        }
-      },
       "auto_1": {
         "name": "Sunday"
       },
@@ -343,6 +333,7 @@
           "above": "Above",
           "acceptable": "Acceptable",
           "below": "Below",
+          "danger": "Danger",
           "desired": "Desired",
           "desired_level_1": "Desired Level 1",
           "desired_level_2": "Desired Level 2"
@@ -536,10 +527,10 @@
           "above": "Above",
           "acceptable": "Acceptable",
           "below": "Below",
-          "danger": "Danger",
           "desired": "Desired",
           "desired_level_1": "Desired Level 1",
-          "desired_level_2": "Desired Level 2"
+          "desired_level_2": "Desired Level 2",
+          "error": "Error"
         }
       },
       "wave_backward_intensity": {

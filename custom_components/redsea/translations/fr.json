@@ -290,16 +290,6 @@
       "acclimation_start_intensity_factor": {
         "name": "Intensité de départ de l'acclimatation"
       },
-      "ato_mode": {
-        "name": "Mode ATO",
-        "state": {
-          "auto": "Auto",
-          "empty": "Vide",
-          "malfunction": "Dysfonctionnement",
-          "pump_timeout": "Temporisation de la pompe",
-          "user_test": "Test utilisateur"
-        }
-      },
       "auto_1": {
         "name": "Dimanche"
       },
@@ -534,7 +524,8 @@
           "below": "En dessous",
           "desired": "Souhaité",
           "desired_level_1": "Niveau souhaité 1",
-          "desired_level_2": "Niveau souhaité 2"
+          "desired_level_2": "Niveau souhaité 2",
+          "error": "Erreur de lecture"
         }
       },
       "wave_backward_intensity": {
